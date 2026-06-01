@@ -40,6 +40,7 @@ body {
      it blend through instead of clashing with an opaque fill. */
   --glass-bg: rgba(255, 255, 255, 0.5);
   --field-hint: rgba(0, 0, 0, 0.45);
+  --composer-edge: rgba(0, 0, 0, 0.14);
 }
 
 [data-theme="dark"] {
@@ -64,6 +65,7 @@ body {
   --glass-bg: rgba(22, 22, 24, 0.5);
   /* Brighter than --muted so the placeholder stays legible over the Aura. */
   --field-hint: rgba(255, 255, 255, 0.5);
+  --composer-edge: rgba(255, 255, 255, 0.14);
 }
 
 body {

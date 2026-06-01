@@ -207,15 +207,15 @@ export default function Controls({
                       if (hue !== null) setColorAt(i, Math.round(hue));
                     }}
                   />
-                  {colors.length > 1 && (
-                    <button
-                      className={styles.colorRemove}
-                      aria-label={`Remove color ${i + 1}`}
-                      onClick={() => handleRemove(i)}
-                    >
-                      <X size={14} weight="bold" />
-                    </button>
-                  )}
+                  <button
+                    className={`${styles.colorRemove} ${colors.length > 1 ? "" : styles.colorRemoveHidden}`}
+                    aria-label={`Remove color ${i + 1}`}
+                    aria-hidden={colors.length <= 1}
+                    tabIndex={colors.length > 1 ? 0 : -1}
+                    onClick={() => handleRemove(i)}
+                  >
+                    <X size={14} weight="bold" />
+                  </button>
                 </div>
               </div>
             );
@@ -223,18 +223,26 @@ export default function Controls({
         </div>
 
         <div className={styles.colorActions}>
-          {colors.length < 3 && (
-            <button className={styles.addColor} onClick={addColor}>
-              <Plus size={14} weight="bold" />
-              Add color
-            </button>
-          )}
-          {colors.length >= 2 && (
-            <button className={styles.addColor} onClick={shuffle}>
-              <Shuffle size={14} weight="bold" />
-              Shuffle
-            </button>
-          )}
+          {/* Both buttons stay mounted and collapse/expand so they animate in
+              and out (matching the colour rows) instead of jumping. */}
+          <button
+            className={`${styles.addColor} ${colors.length < 3 ? "" : styles.actionHidden}`}
+            onClick={addColor}
+            aria-hidden={colors.length >= 3}
+            tabIndex={colors.length < 3 ? 0 : -1}
+          >
+            <Plus size={14} weight="bold" />
+            Add color
+          </button>
+          <button
+            className={`${styles.addColor} ${colors.length >= 2 ? "" : styles.actionHidden}`}
+            onClick={shuffle}
+            aria-hidden={colors.length < 2}
+            tabIndex={colors.length >= 2 ? 0 : -1}
+          >
+            <Shuffle size={14} weight="bold" />
+            Shuffle
+          </button>
         </div>
       </div>
     </>

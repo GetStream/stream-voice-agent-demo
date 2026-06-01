@@ -424,7 +424,7 @@ void main() {
   // a slight U. Sampled in the WARPED space so it flows fluidly. ---
   float ex = clamp(abs(p.x - 0.5) * 2.0, 0.0, 1.0);          // 0 centre -> 1 at sides
   float reachY = mix(0.26, 0.40, smoothstep(0.15, 1.0, ex)); // short centre, taller sides
-  reachY *= 1.0 + 0.42 * speech;                             // bloom swells taller on speech peaks
+  reachY *= 1.0 + 0.20 * speech;                             // gentle swell on speech peaks (doesn't rise too tall)
   float mask = clamp(1.0 - smoothstep(0.0, reachY, p.y), 0.0, 1.0); // bright bottom -> fade up
 
   // Soft glow, modulated by the flowing field; breathes, swells with speech.
