@@ -374,8 +374,13 @@ void main() {
   vec3 rimCol = mix(saturate3(vivid(uHue), 1.6),
                     mix(vec3(1.0), vivid(uHue), 0.25), uDark);
 
-  // Colour: dark hue-tinted glass base, then the vivid blobs, hotspot, and rim.
-  vec3 col = deepHue(uHue) * 0.45;
+  // Glass body base: dark hue-tinted glass on DARK (the reference look), but a
+  // pale airy tint on LIGHT — never black, which looks muddy on the white page.
+  vec3 glassBase = mix(mix(vivid(uHue), vec3(1.0), 0.72), deepHue(uHue) * 0.45, uDark);
+  vec3 col = glassBase;
+  // Gentle hue-preserving shading for 3D (darkens toward the unlit side without
+  // ever going black, so light mode stays clean).
+  col *= mix(0.80, 1.06, diff);
   col = mix(col, glow, glowAmt);
   col += spec * 0.7;
   col = mix(col, rimCol, fres * 0.92);

@@ -84,21 +84,14 @@ export default function Phone({
     } catch {}
   };
 
-  // Tapping the orb gives it a gentle springy bounce — a small bit of delight.
+  // Tapping the visualization gives it a gentle springy bounce — a small bit of
+  // delight, shared by every style (orb/sphere/ring/wave live in the bouncer;
+  // the aura fills its own full-screen layer). Only the active one is visible,
+  // so bouncing both is harmless.
   const bouncerRef = useRef<HTMLDivElement>(null);
-  const onVizClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (viz !== "orb") return; // only the orb reacts to touch
-    const el = bouncerRef.current;
+  const auraRef = useRef<HTMLDivElement>(null);
+  const bounce = (el: HTMLElement | null) => {
     if (!el) return;
-    // Only react to taps on the orb's disc, not the empty screen around it.
-    // Mirror the shader's coords(): centre, normalised by the min dimension;
-    // the orb radius is ~0.24, so allow a small margin for its soft rim.
-    const rect = el.getBoundingClientRect();
-    const m = Math.min(rect.width, rect.height);
-    const dx = (e.clientX - (rect.left + rect.width / 2)) / m;
-    const dy = (e.clientY - (rect.top + rect.height / 2)) / m;
-    if (Math.hypot(dx, dy) > 0.27) return; // outside the orb shape
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     el.animate(
       [
         { transform: "scale(1)", offset: 0 },
@@ -110,6 +103,14 @@ export default function Phone({
       { duration: 340, easing: "ease-out" }
     );
   };
+  const onScreenTap = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't bounce when tapping a control (header buttons, composer + its buttons).
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("input")) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    bounce(bouncerRef.current);
+    bounce(auraRef.current);
+  };
 
   return (
     <div
@@ -117,10 +118,14 @@ export default function Phone({
       className={`${styles.phone} ${isDesktop ? styles.desktop : ""} ${resizing ? styles.resizing : ""}`}
       style={isDesktop && size ? { width: size.w, height: size.h } : undefined}
     >
-      <div className={`${styles.screen} ${isDesktop ? styles.screenDesktop : ""}`}>
+      <div
+        className={`${styles.screen} ${isDesktop ? styles.screenDesktop : ""}`}
+        onClick={onScreenTap}
+      >
         {/* Aura: aurora glow that hangs from the top of the screen, behind the
             header (spans the top third). Hidden unless the Aura style is on. */}
         <div
+          ref={auraRef}
           className={`${styles.auraLayer} ${viz === "aura" ? styles.vizOn : ""}`}
           aria-hidden
         >
@@ -157,7 +162,7 @@ export default function Phone({
         </header>
 
         {/* Center visualization (crossfading WebGL shaders) */}
-        <div className={styles.viz} onClick={onVizClick}>
+        <div className={styles.viz}>
           <div ref={bouncerRef} className={styles.bouncer}>
             <div className={`${styles.vizLayer} ${viz === "orb" ? styles.vizOn : ""}`}>
               <Orb hues={hues} running={viz === "orb"} state={state} dark={dark} />
