@@ -195,6 +195,8 @@ export default function ShaderCanvas({
         uOrbit: { value: stateTarget.current.orbit },
         uLoad: { value: stateTarget.current.load },
         uFlow: { value: stateTarget.current.flow },
+        uFlowSpin: { value: 0 },
+        uOrbSpin: { value: 0 },
         uReact: { value: stateTarget.current.react },
         uExpressivity: { value: expressivityRef.current },
         uDark: { value: darkRef.current ? 1 : 0 },
@@ -262,6 +264,15 @@ export default function ShaderCanvas({
     // thinking/speaking) — integrating it rather than multiplying uTime keeps the
     // phase continuous, so changing state never makes the comets jump.
     let tSpin = 0;
+    // Flow-gated spin time for the Orb/Glow "thinking" rotation. Advances only while
+    // thinking (curFlow) — integrated like tSpin (not computed as t*curFlow) so the
+    // rotation eases in/out with the state instead of jumping by the whole elapsed
+    // time whenever a message flips the state (which spun the Orb fast).
+    let flowTime = 0;
+    // Integrated orbit phase for the Glow's colour masses: a base rate plus a lift
+    // while thinking/speaking. Integrated (not t*orbS) so flipping state never jumps
+    // the orbit angle.
+    let orbSpin = 0;
     // Tap ripple: when a new tap id arrives, snapshot its position and restart the
     // elapsed timer; the shader uses uTapTime to expand + fade the ripple.
     let lastTapId = tapRef.current ? tapRef.current.id : -1;
@@ -306,7 +317,15 @@ export default function ShaderCanvas({
       curExpr += (ex - curExpr) * 0.08;
 
       // Reduced motion: keep it barely alive instead of buzzing.
-      t += dt * (reduced ? 0.07 : 1.0) * curSpeed;
+      const tStep = dt * (reduced ? 0.07 : 1.0) * curSpeed;
+      t += tStep;
+      // Flow-gated spin time: same step as t but scaled by the (lerped) flow weight,
+      // so it only advances while thinking and the rotation it drives eases in/out
+      // smoothly instead of jumping when the state flips on a new message.
+      flowTime += tStep * curFlow;
+      // Orbit phase: base rate, lifted a touch while active (flow/react). Continuous,
+      // so a state change eases the orbit speed instead of jumping the angle.
+      orbSpin += tStep * (1.0 + 0.5 * curFlow + 0.1 * curReact);
       // Comet spin speed: low base (idle ~0.33) lifted mostly by react (listening
       // ~0.7, speaking ~1.3) and flow (thinking ~1.2), plus load (connecting ~0.8)
       // — so the comets clearly rotate slower in listening/ready than speaking.
@@ -377,6 +396,8 @@ export default function ShaderCanvas({
 
       program.uniforms.uTime.value = t;
       program.uniforms.uSpin.value = tSpin;
+      program.uniforms.uFlowSpin.value = flowTime;
+      program.uniforms.uOrbSpin.value = orbSpin;
       program.uniforms.uCol0.value.set(...cur0);
       program.uniforms.uCol1.value.set(...cur1);
       program.uniforms.uCol2.value.set(...cur2);

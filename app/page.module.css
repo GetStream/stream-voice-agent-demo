@@ -70,7 +70,8 @@
   border-radius: 8px;
   color: var(--muted);
   background: transparent;
-  transition: color 0.2s ease, background 0.2s ease, transform 0.16s ease;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.16s ease,
+    opacity 0.2s ease;
 }
 .panelReset:hover {
   color: var(--text);
@@ -78,6 +79,11 @@
 }
 .panelReset:active {
   transform: scale(0.92);
+}
+/* Hidden until a setting differs from the defaults — fades out, non-interactive. */
+.panelResetHidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* The settings stack; scrolls within the panel if it ever outgrows it. */
@@ -420,6 +426,12 @@
   letter-spacing: -0.01em;
   color: var(--text);
 }
+/* Mobile sheet header: reset sits just left of the close button. */
+.sheetHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .sheetClose {
   display: grid;
   place-items: center;
@@ -495,6 +507,20 @@
   background: var(--accent);
   border: 2px solid var(--device-bg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* Mobile: keep the handle the same size as desktop, but enlarge the invisible,
+   fully touchable band around it (the extra input height) so it's easier to grab
+   with a finger. The visible track + thumb are unchanged. Negative vertical
+   margins (half the 18px height increase) absorb the extra height so the slider
+   keeps its original 22px layout footprint — labels and spacing don't shift; the
+   touch band just overflows invisibly into the gaps above and below. */
+@media (max-width: 600px) {
+  .slider {
+    height: 40px;
+    margin-top: -9px;
+    margin-bottom: -9px;
+  }
 }
 
 /* ---------- Colour swatches (full-colour picker trigger) ---------- */

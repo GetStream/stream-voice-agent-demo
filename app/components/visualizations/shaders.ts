@@ -31,6 +31,13 @@ uniform float uOrbit;      // rotational / orbiting motion
 // Motion-pattern weights (one ~1 per state):
 uniform float uLoad;       // bouncing loader sweep  -> connecting
 uniform float uFlow;       // traveling / spinner    -> thinking
+uniform float uFlowSpin;   // flow-gated spin TIME, integrated on the JS side so it
+                           // only advances while thinking; use this (not t*uFlow)
+                           // for thinking rotation so ramping flow eases the spin
+                           // in instead of jumping by the whole elapsed time
+uniform float uOrbSpin;    // integrated orbit phase for the Glow's colour masses
+                           // (base rate, lifted while active) — use this instead of
+                           // t*orbS so a state change never jumps the orbit angle
 uniform float uReact;      // reactive amplitude     -> listening / speaking
 uniform float uExpressivity; // overall liveliness 0..2 (1 = default); Sphere scales
                            // its ripple COUNT with it (amplitude is already scaled
@@ -232,7 +239,7 @@ void main() {
   // calmly, listening gently lifts, thinking slowly rotates (uFlow), connecting
   // pulses (uLoad), speaking surges (speech).
   float energy = 0.10 + 0.28 * uReact + 0.18 * uFlow + 0.22 * uLoad + 0.42 * speech;
-  float ct = t * (0.13 + 0.05 * uFlow);    // thinking flows just a touch faster
+  float ct = t * 0.13 + uFlowSpin * 0.05;  // thinking flows just a touch faster
   float amp = 0.36 + 0.24 * energy;        // gentle turbulence; keeps the masses sleek
   vec2 w1 = vec2(snoise(vec3(p * 0.65, ct)),
                  snoise(vec3(p * 0.65 + 11.0, ct)));
@@ -245,8 +252,10 @@ void main() {
   // Thinking: a SLOW, RIGID rotation of the liquid field — the colour masses
   // gently orbit as one (a calm "processing" loop), not a radius-dependent shear
   // that winds into a tight spiral. ONLY thinking rotates; listening and speaking
-  // flow via their breathing/surge instead, so they never spin.
-  sp = rot2(sp, t * 0.30 * uFlow);
+  // flow via their breathing/surge instead, so they never spin. uFlowSpin is the
+  // integrated flow-gated angle, so entering/leaving thinking eases the rotation
+  // rather than snapping by the whole elapsed time.
+  sp = rot2(sp, uFlowSpin * 0.30);
 
   // Pointer ripple (tap + hover): shove the liquid colour field radially out from
   // the pointer so the gradient ripples around the cursor/tap.
@@ -362,7 +371,7 @@ void main() {
   // read as moving WAVES inside the glow (livelier while speaking).
   vec2 P = q / R;
   float pl = length(P);
-  float nt = t * (0.10 + 0.05 * uFlow);       // thinking flows just a touch faster
+  float nt = t * 0.10 + uFlowSpin * 0.05;     // thinking flows just a touch faster
   float nAmp = 0.12 + 0.18 * energy;          // calmer warp so speaking stays fluid
   vec2 sp = P + nAmp * vec2(snoise(vec3(P * 0.7, nt)),
                             snoise(vec3(P * 0.7 + 4.7, nt)));
@@ -376,18 +385,23 @@ void main() {
   // orbit as one (a calm "processing" loop), not a radius-dependent shear that
   // winds into a tight spiral over time. ONLY thinking rotates (uFlow); listening
   // and speaking move via their breathing/waves instead, so they never spin.
-  sp = rot2(sp, t * 0.30 * uFlow);
+  // uFlowSpin is the integrated flow-gated angle so the rotation eases in/out with
+  // the state instead of snapping by the whole elapsed time.
+  sp = rot2(sp, uFlowSpin * 0.30);
   // Pointer ripple (tap + hover): shove the colour field radially out from the
   // pointer position.
   vec2 gtoP = q - (uHoverAmt > 0.001 ? uHover : uTap);
   sp += (gtoP / (length(gtoP) + 1e-4)) * poke(q) * 0.5;
   float bt = t;
-  float orbS = 1.0 + 0.5 * uFlow + 0.1 * speechSmooth;   // masses circle a touch faster when active
-  float a0 =  bt * 0.42 * orbS + 2.0 * snoise(vec3(bt * 0.12, 0.0, 0.0));
-  float a1 = -bt * 0.34 * orbS + 2.0 * snoise(vec3(bt * 0.10, 5.0, 0.0)) + 2.0;
+  // Orbit angle from the integrated phase uOrbSpin (base rate + an "active" lift,
+  // accumulated on the JS side) so the masses circle a touch faster when active
+  // WITHOUT the angle jumping by the whole elapsed time when a message flips the
+  // state. The small snoise terms are continuous wobbles, so they stay on bt.
+  float a0 =  uOrbSpin * 0.42 + 2.0 * snoise(vec3(bt * 0.12, 0.0, 0.0));
+  float a1 = -uOrbSpin * 0.34 + 2.0 * snoise(vec3(bt * 0.10, 5.0, 0.0)) + 2.0;
   // Two more orbiting masses for colours 4/5 — only contribute once active (g3/g4).
-  float a2 =  bt * 0.30 * orbS + 2.0 * snoise(vec3(bt * 0.11, 9.0, 0.0)) + 1.0;
-  float a3 = -bt * 0.26 * orbS + 2.0 * snoise(vec3(bt * 0.09, 14.0, 0.0)) + 3.5;
+  float a2 =  uOrbSpin * 0.30 + 2.0 * snoise(vec3(bt * 0.11, 9.0, 0.0)) + 1.0;
+  float a3 = -uOrbSpin * 0.26 + 2.0 * snoise(vec3(bt * 0.09, 14.0, 0.0)) + 3.5;
   vec2 c0 = 0.40 * vec2(cos(a0), sin(a0));
   vec2 c1 = 0.38 * vec2(cos(a1), sin(a1));
   vec2 c2c = 0.36 * vec2(cos(a2), sin(a2));
@@ -815,16 +829,19 @@ void main() {
   vec3 k4 = vivid(uCol4);
   float gx = clamp(x + 0.5, 0.0, 1.0);             // 0..1 along the line
   float seg = 1.0 / max(uCount, 1.0);              // even band spacing for any count
+  // Band half-width tracks the spacing so adjacent colours don't wash into each
+  // other as more are added — each colour keeps a clearly visible region.
+  float bandW = seg * 0.7;
   float m0 = 0.5 * seg + 0.12 * sin(t * 0.13);
   float m1 = 1.5 * seg + 0.13 * sin(t * 0.11 + 2.1);
   float m2 = 2.5 * seg + 0.12 * sin(t * 0.17 + 4.2);
   float m3 = 3.5 * seg + 0.12 * sin(t * 0.15 + 1.0);
   float m4 = 4.5 * seg + 0.12 * sin(t * 0.10 + 3.3);
-  float w0 = exp(-pow((gx - m0) / 0.30, 2.0));
-  float w1 = exp(-pow((gx - m1) / 0.30, 2.0)) * clamp(uCount - 1.0, 0.0, 1.0);
-  float w2 = exp(-pow((gx - m2) / 0.30, 2.0)) * clamp(uCount - 2.0, 0.0, 1.0);
-  float w3 = exp(-pow((gx - m3) / 0.30, 2.0)) * clamp(uCount - 3.0, 0.0, 1.0);
-  float w4 = exp(-pow((gx - m4) / 0.30, 2.0)) * clamp(uCount - 4.0, 0.0, 1.0);
+  float w0 = exp(-pow((gx - m0) / bandW, 2.0));
+  float w1 = exp(-pow((gx - m1) / bandW, 2.0)) * clamp(uCount - 1.0, 0.0, 1.0);
+  float w2 = exp(-pow((gx - m2) / bandW, 2.0)) * clamp(uCount - 2.0, 0.0, 1.0);
+  float w3 = exp(-pow((gx - m3) / bandW, 2.0)) * clamp(uCount - 3.0, 0.0, 1.0);
+  float w4 = exp(-pow((gx - m4) / bandW, 2.0)) * clamp(uCount - 4.0, 0.0, 1.0);
   vec3 col = (k0 * w0 + k1 * w1 + k2 * w2 + k3 * w3 + k4 * w4) / (w0 + w1 + w2 + w3 + w4 + 1e-4);
   col = saturate3(col, 1.2);
   col = desat(col, uSat);

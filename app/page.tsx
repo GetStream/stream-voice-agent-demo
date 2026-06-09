@@ -18,6 +18,7 @@ import { AgentState } from "./components/visualizations/states";
 import {
   type Color,
   DEFAULT_COLOR,
+  colorsEqual,
   nextColor,
   shuffleColors,
 } from "./components/color";
@@ -161,6 +162,15 @@ export default function Page() {
     setExpressivity(1);
     setVizSize(1);
   };
+  // The reset button only appears once something differs from those defaults.
+  const settingsChanged = !(
+    viz === "glow" &&
+    state === "speaking" &&
+    expressivity === 1 &&
+    vizSize === 1 &&
+    colors.length === 1 &&
+    colorsEqual(colors[0], DEFAULT_COLOR)
+  );
 
   const controlsProps = {
     viz,
@@ -195,10 +205,11 @@ export default function Page() {
             <div className={styles.panelBrand}>
               <StreamLogo />
               <button
-                className={styles.panelReset}
+                className={`${styles.panelReset} ${settingsChanged ? "" : styles.panelResetHidden}`}
                 aria-label="Reset settings"
                 title="Reset settings"
-                tabIndex={panelCollapsed ? -1 : 0}
+                aria-hidden={!settingsChanged}
+                tabIndex={settingsChanged && !panelCollapsed ? 0 : -1}
                 onClick={resetSettings}
               >
                 <ArrowCounterClockwise size={16} />
@@ -330,14 +341,26 @@ export default function Page() {
             >
               <div className={styles.sheetHead}>
                 <span className={styles.sheetTitle}>Settings</span>
-                <button
-                  className={styles.sheetClose}
-                  aria-label="Close"
-                  tabIndex={sheetOpen ? 0 : -1}
-                  onClick={closeSheet}
-                >
-                  <X size={18} weight="bold" />
-                </button>
+                <div className={styles.sheetHeadActions}>
+                  <button
+                    className={`${styles.panelReset} ${settingsChanged ? "" : styles.panelResetHidden}`}
+                    aria-label="Reset settings"
+                    title="Reset settings"
+                    aria-hidden={!settingsChanged}
+                    tabIndex={settingsChanged && sheetOpen ? 0 : -1}
+                    onClick={resetSettings}
+                  >
+                    <ArrowCounterClockwise size={16} />
+                  </button>
+                  <button
+                    className={styles.sheetClose}
+                    aria-label="Close"
+                    tabIndex={sheetOpen ? 0 : -1}
+                    onClick={closeSheet}
+                  >
+                    <X size={18} weight="bold" />
+                  </button>
+                </div>
               </div>
               <div className={styles.sheetBody}>
                 <Controls {...controlsProps} />
