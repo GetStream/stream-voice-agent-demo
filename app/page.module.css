@@ -15,6 +15,16 @@
     padding: 0;
     gap: 0;
   }
+  /* The desktop layout (side panel + right area) is JS-gated by `isMobile`, which
+     starts false so the server and first client render match. On a phone that
+     means the desktop side panel — which holds the settings — paints for a frame
+     before the effect flips to the mobile layout, flashing the settings on load.
+     Hide all the desktop-only chrome at mobile widths so it never shows. */
+  .sidePanel,
+  .panelExpand,
+  .rightArea {
+    display: none;
+  }
 }
 
 /* ---------- Desktop: left side panel + centred right area ---------- */
