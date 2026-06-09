@@ -66,10 +66,11 @@ export default function Phone({
   const [overflowing, setOverflowing] = useState(false);
   const replyTimers = useRef<number[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
-  // Agent reply UX: a brief "thinking" dots indicator in the agent's slot, then
-  // the reply types in character-by-character. `pending` shows the dots;
-  // `typingId`/`typedCount` reveal that message's text up to N characters.
-  const [pending, setPending] = useState(false);
+  // Agent reply UX: the agent message is added immediately and shows a shimmering
+  // "Thinking…" (while its id is `pendingId`), then reveals its text in place,
+  // character-by-character (`typingId`/`typedCount`). Reusing the SAME element for
+  // both phases avoids a remount/jump when switching from "Thinking…" to the text.
+  const [pendingId, setPendingId] = useState<number | null>(null);
   const [typingId, setTypingId] = useState<number | null>(null);
   const [typedCount, setTypedCount] = useState(0);
   const typingTimer = useRef<number | null>(null);
@@ -81,17 +82,17 @@ export default function Phone({
     }
   };
   // Reveal `text` one character at a time (slightly varied cadence so it reads as
-  // natural typing, not a metronome), then settle the agent back to idle.
+  // natural typing, not a metronome), then settle the agent back to idle. The first
+  // character shows immediately so there's no empty frame after "Thinking…".
   const startTyping = (id: number, text: string) => {
     stopTyping();
     setTypingId(id);
-    setTypedCount(0);
     let i = 0;
-    const step = () => {
+    const tick = () => {
       i += 1;
       setTypedCount(i);
       if (i < text.length) {
-        typingTimer.current = window.setTimeout(step, 16 + Math.random() * 22);
+        typingTimer.current = window.setTimeout(tick, 16 + Math.random() * 22);
       } else {
         typingTimer.current = null;
         setTypingId(null);
@@ -99,7 +100,7 @@ export default function Phone({
         replyTimers.current.push(t);
       }
     };
-    typingTimer.current = window.setTimeout(step, 60);
+    tick();
   };
 
   // Canned agent replies (demo) — picked at random. No em dashes by request.
@@ -121,18 +122,23 @@ export default function Phone({
     // Finalize any reply still typing (snap it to full text) before the next turn.
     stopTyping();
     setTypingId(null);
-    setMessages((m) => [...m, { id: ++msgSeq.current, role: "user", text }]);
-    // Agent: a brief "thinking" pause (loading dots in the agent's slot), then the
-    // reply appears and types in character-by-character, settling to idle when done.
+    // Add the user message AND the agent's reply slot in one go. The agent slot
+    // shows a "Thinking…" shimmer first (its id is pendingId), then the SAME
+    // element reveals its text — no swap, so the layout doesn't jump.
     const reply = AGENT_REPLIES[Math.floor(Math.random() * AGENT_REPLIES.length)];
+    const userId = ++msgSeq.current;
+    const agentId = ++msgSeq.current;
+    setMessages((m) => [
+      ...m,
+      { id: userId, role: "user", text },
+      { id: agentId, role: "agent", text: reply },
+    ]);
     setAgentState("thinking");
-    setPending(true);
+    setPendingId(agentId);
     const t1 = window.setTimeout(() => {
-      setPending(false);
+      setPendingId(null);
       setAgentState("speaking");
-      const id = ++msgSeq.current;
-      setMessages((m) => [...m, { id, role: "agent", text: reply }]);
-      startTyping(id, reply);
+      startTyping(agentId, reply);
     }, 900);
     replyTimers.current.push(t1);
   };
@@ -141,7 +147,7 @@ export default function Phone({
     replyTimers.current.forEach((t) => clearTimeout(t));
     replyTimers.current = [];
     stopTyping();
-    setPending(false);
+    setPendingId(null);
     setTypingId(null);
     setTypedCount(0);
     setMessages([]);
@@ -158,7 +164,7 @@ export default function Phone({
     if (!el) return;
     el.scrollTop = el.scrollHeight;
     setOverflowing(el.scrollHeight > el.clientHeight + 1);
-  }, [messages, typedCount, pending]);
+  }, [messages, typedCount, pendingId]);
   useEffect(() => {
     const onResize = () => {
       const el = messagesRef.current;
@@ -646,6 +652,7 @@ export default function Phone({
         {chatMode && (
           <div className={styles.messages} ref={messagesRef}>
             {messages.map((m) => {
+              const isThinking = m.id === pendingId;
               const isTyping = m.id === typingId;
               const shown = isTyping ? m.text.slice(0, typedCount) : m.text;
               return (
@@ -654,20 +661,18 @@ export default function Phone({
                   className={`${styles.msg} ${
                     m.role === "user" ? styles.msgUser : styles.msgAgent
                   }`}
+                  aria-live={isThinking ? "polite" : undefined}
                 >
-                  {shown}
+                  {/* Same element for both phases: "Thinking…" shimmer, then the
+                      reply types in place — so switching never remounts or jumps. */}
+                  {isThinking ? (
+                    <span className={styles.thinking}>Thinking…</span>
+                  ) : (
+                    shown
+                  )}
                 </div>
               );
             })}
-            {/* Loading state — a shimmering "Thinking…" where the reply will appear. */}
-            {pending && (
-              <div
-                className={`${styles.msg} ${styles.msgAgent}`}
-                aria-live="polite"
-              >
-                <span className={styles.thinking}>Thinking…</span>
-              </div>
-            )}
           </div>
         )}
 
