@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   SlidersHorizontal,
   Sun,
@@ -22,6 +22,12 @@ import Wave from "./visualizations/Wave";
 import { AgentState } from "./visualizations/states";
 import type { Color } from "./color";
 import { STATE_LABEL } from "./stateLabels";
+
+// Pin-to-bottom must run BEFORE paint, otherwise a new message renders at the old
+// scroll position for one frame and then the scroll snaps — a visible jump. Use
+// layout effect on the client, falling back to useEffect on the server (no DOM).
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export default function Phone({
   viz,
@@ -60,6 +66,41 @@ export default function Phone({
   const [overflowing, setOverflowing] = useState(false);
   const replyTimers = useRef<number[]>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
+  // Agent reply UX: a brief "thinking" dots indicator in the agent's slot, then
+  // the reply types in character-by-character. `pending` shows the dots;
+  // `typingId`/`typedCount` reveal that message's text up to N characters.
+  const [pending, setPending] = useState(false);
+  const [typingId, setTypingId] = useState<number | null>(null);
+  const [typedCount, setTypedCount] = useState(0);
+  const typingTimer = useRef<number | null>(null);
+
+  const stopTyping = () => {
+    if (typingTimer.current != null) {
+      clearTimeout(typingTimer.current);
+      typingTimer.current = null;
+    }
+  };
+  // Reveal `text` one character at a time (slightly varied cadence so it reads as
+  // natural typing, not a metronome), then settle the agent back to idle.
+  const startTyping = (id: number, text: string) => {
+    stopTyping();
+    setTypingId(id);
+    setTypedCount(0);
+    let i = 0;
+    const step = () => {
+      i += 1;
+      setTypedCount(i);
+      if (i < text.length) {
+        typingTimer.current = window.setTimeout(step, 16 + Math.random() * 22);
+      } else {
+        typingTimer.current = null;
+        setTypingId(null);
+        const t = window.setTimeout(() => setAgentState("idle"), 700);
+        replyTimers.current.push(t);
+      }
+    };
+    typingTimer.current = window.setTimeout(step, 60);
+  };
 
   // Canned agent replies (demo) — picked at random. No em dashes by request.
   const AGENT_REPLIES = [
@@ -77,21 +118,32 @@ export default function Phone({
     const text = message.trim();
     if (!text) return;
     setMessage("");
+    // Finalize any reply still typing (snap it to full text) before the next turn.
+    stopTyping();
+    setTypingId(null);
     setMessages((m) => [...m, { id: ++msgSeq.current, role: "user", text }]);
-    // Agent: think briefly, reply, then settle back to idle.
+    // Agent: a brief "thinking" pause (loading dots in the agent's slot), then the
+    // reply appears and types in character-by-character, settling to idle when done.
     const reply = AGENT_REPLIES[Math.floor(Math.random() * AGENT_REPLIES.length)];
     setAgentState("thinking");
+    setPending(true);
     const t1 = window.setTimeout(() => {
+      setPending(false);
       setAgentState("speaking");
-      setMessages((m) => [...m, { id: ++msgSeq.current, role: "agent", text: reply }]);
+      const id = ++msgSeq.current;
+      setMessages((m) => [...m, { id, role: "agent", text: reply }]);
+      startTyping(id, reply);
     }, 900);
-    const t2 = window.setTimeout(() => setAgentState("idle"), 2800);
-    replyTimers.current.push(t1, t2);
+    replyTimers.current.push(t1);
   };
 
   const newChat = () => {
     replyTimers.current.forEach((t) => clearTimeout(t));
     replyTimers.current = [];
+    stopTyping();
+    setPending(false);
+    setTypingId(null);
+    setTypedCount(0);
     setMessages([]);
     setAgentState(null);
     setMessage("");
@@ -101,12 +153,12 @@ export default function Phone({
   // Keep the list pinned to the latest message, and track whether it actually
   // overflows — the frosted scroll bands only show when there's something to
   // scroll, so a single message never sits under a blurred gradient.
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
     setOverflowing(el.scrollHeight > el.clientHeight + 1);
-  }, [messages]);
+  }, [messages, typedCount, pending]);
   useEffect(() => {
     const onResize = () => {
       const el = messagesRef.current;
@@ -376,6 +428,8 @@ export default function Phone({
 
   // Stop the mic if the component unmounts mid-recording.
   useEffect(() => () => stopVoice(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Cancel any in-progress typing animation on unmount.
+  useEffect(() => () => stopTyping(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In a chat, the conversation drives the agent state (thinking → speaking →
   // idle). Otherwise the demo State control wins — including in voice/audio mode,
@@ -591,16 +645,29 @@ export default function Phone({
         {/* Message thread (chat view) — appears once a conversation has started. */}
         {chatMode && (
           <div className={styles.messages} ref={messagesRef}>
-            {messages.map((m) => (
+            {messages.map((m) => {
+              const isTyping = m.id === typingId;
+              const shown = isTyping ? m.text.slice(0, typedCount) : m.text;
+              return (
+                <div
+                  key={m.id}
+                  className={`${styles.msg} ${
+                    m.role === "user" ? styles.msgUser : styles.msgAgent
+                  }`}
+                >
+                  {shown}
+                </div>
+              );
+            })}
+            {/* Loading state — a shimmering "Thinking…" where the reply will appear. */}
+            {pending && (
               <div
-                key={m.id}
-                className={`${styles.msg} ${
-                  m.role === "user" ? styles.msgUser : styles.msgAgent
-                }`}
+                className={`${styles.msg} ${styles.msgAgent}`}
+                aria-live="polite"
               >
-                {m.text}
+                <span className={styles.thinking}>Thinking…</span>
               </div>
-            ))}
+            )}
           </div>
         )}
 

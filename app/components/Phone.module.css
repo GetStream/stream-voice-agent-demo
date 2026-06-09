@@ -351,7 +351,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   padding: 128px 16px 150px; /* top clears the orb's solid backdrop; bottom clears the composer + its (softer, taller) frosted band */
   -webkit-overflow-scrolling: touch;
   /* Hide the scrollbar (still scrollable) so the chat reads as a clean surface. */
@@ -413,10 +413,10 @@
 
 .msg {
   max-width: 78%;
-  padding: 9px 14px;
+  padding: 10px 15px;
   border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.36;
+  font-size: 15px;
+  line-height: 1.4;
   letter-spacing: 0.005em;
   word-break: break-word;
   animation: msgIn 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -440,11 +440,46 @@
   color: var(--accent-fg);
   border-bottom-right-radius: 6px;
 }
+/* The agent reply renders as plain text (no bubble), ChatGPT/Claude style — only
+   the user's own message keeps the coloured bubble. */
 .msgAgent {
-  align-self: flex-start;
-  background: var(--control-bg);
+  align-self: stretch;
+  max-width: 100%;
+  background: transparent;
   color: var(--text);
-  border-bottom-left-radius: 6px;
+  padding: 2px 0;
+  border-radius: 0;
+}
+
+/* Loading state: the word "Thinking…" with a light sweep shimmering across it. */
+.thinking {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--muted) 35%,
+    var(--text) 50%,
+    var(--muted) 65%,
+    var(--muted) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: textShimmer 1.5s linear infinite;
+}
+@keyframes textShimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking {
+    animation: none;
+  }
 }
 
 /* Header right-side button group (theme toggle + new-chat pencil). */
