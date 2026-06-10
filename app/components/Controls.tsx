@@ -61,6 +61,11 @@ const EXPRESSIVITY_MAX = 2;
 // Matches the swatch enter/exit animation duration in page.module.css.
 const SWATCH_ANIM_MS = 300;
 
+// Inline `--fill` for the slider track: WebKit has no native progress-fill
+// pseudo-element, so the CSS paints the filled left portion from this var.
+const sliderFill = (value: number, min: number, max: number) =>
+  ({ "--fill": `${((value - min) / (max - min)) * 100}%` }) as React.CSSProperties;
+
 export default function Controls({
   viz,
   setViz,
@@ -175,6 +180,7 @@ export default function Controls({
           max={EXPRESSIVITY_MAX}
           step={0.01}
           value={expressivity}
+          style={sliderFill(expressivity, EXPRESSIVITY_MIN, EXPRESSIVITY_MAX)}
           onChange={(e) => setExpressivity(Number(e.target.value))}
           aria-label="Animation expressivity"
         />
@@ -190,6 +196,7 @@ export default function Controls({
           max={SIZE_MAX}
           step={0.01}
           value={size}
+          style={sliderFill(size, SIZE_MIN, SIZE_MAX)}
           onChange={(e) => setSize(Number(e.target.value))}
           aria-label="Visualization size"
         />
