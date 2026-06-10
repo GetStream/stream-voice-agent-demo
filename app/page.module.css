@@ -545,19 +545,19 @@
   border-radius: 999px;
   background: linear-gradient(
     to right,
-    var(--muted) var(--fill),
-    var(--control-bg) var(--fill)
+    color-mix(in srgb, var(--muted) 70%, transparent) var(--fill),
+    color-mix(in srgb, var(--text) 9%, transparent) var(--fill)
   );
 }
 .slider::-moz-range-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--control-bg);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
 }
 .slider::-moz-range-progress {
   height: 4px;
   border-radius: 999px;
-  background: var(--muted);
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
 }
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
