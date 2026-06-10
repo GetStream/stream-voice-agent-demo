@@ -529,6 +529,8 @@
 }
 
 /* ---------- Range slider (Size) — monochrome chrome ---------- */
+/* `--fill` (0–100%, set inline from React) drives the filled-track gradient on
+   WebKit; Firefox gets the same fill natively via ::-moz-range-progress. */
 .slider {
   -webkit-appearance: none;
   appearance: none;
@@ -536,35 +538,59 @@
   height: 22px;
   background: transparent;
   cursor: pointer;
+  --fill: 50%;
 }
 .slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 22%, transparent);
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--fill),
+    color-mix(in srgb, var(--text) 22%, transparent) var(--fill)
+  );
 }
 .slider::-moz-range-track {
   height: 4px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text) 22%, transparent);
 }
+.slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  margin-top: -7px;
-  width: 18px;
-  height: 18px;
+  margin-top: -6px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  background: var(--accent);
-  border: 2px solid var(--device-bg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease;
 }
 .slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  background: var(--accent);
-  border: 2px solid var(--device-bg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease;
+}
+.slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.26);
+}
+.slider:hover::-moz-range-thumb {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.26);
+}
+.slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.34);
+}
+.slider:active::-moz-range-thumb {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.34);
 }
 
 /* Mobile: keep the handle the same size as desktop, but enlarge the invisible,
