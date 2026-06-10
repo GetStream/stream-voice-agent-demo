@@ -562,9 +562,9 @@
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  margin-top: -6px;
-  width: 22px;
-  height: 16px;
+  margin-top: -8px;
+  width: 24px;
+  height: 20px;
   border-radius: 999px;
   background: #fff;
   border: none;
@@ -572,8 +572,8 @@
   transition: box-shadow 0.15s ease;
 }
 .slider::-moz-range-thumb {
-  width: 22px;
-  height: 16px;
+  width: 24px;
+  height: 20px;
   border-radius: 999px;
   background: #fff;
   border: none;
