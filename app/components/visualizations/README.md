@@ -47,9 +47,9 @@ Every style takes the identical props.
 | -------------- | ------------------- | ---------------------------------------------------------------- |
 | `colors`       | `Color[]`           | 1-5 full HSV colours (`{ h, s, v }`). Lerped internally for smoothness. |
 | `running`      | `boolean`           | Animate (RAF on) vs. hold the last frame. Only the visible one.  |
-| `state`        | `AgentState`        | `"idle" \| "connecting" \| "listening" \| "thinking" \| "speaking"`. |
+| `state`        | `AgentState`        | `"idle" \| "connecting" \| "listening" \| "thinking" \| "speaking" \| "error"`. |
 | `dark`         | `boolean`           | Theme flag; tunes the halo (clean on light, glow on dark).       |
-| `expressivity` | `number?`           | Motion multiplier: 1 = tuned default, 0 = near-still, 2 = twice as animated. |
+| `expressivity` | `number?`           | Motion multiplier, clamped to 0-2: 1 = tuned default, 0 = near-still, 2 = twice as animated. |
 | `tap`          | `{ x, y, id }?`     | A tap/click inside the visual; `id` increments so repeat taps re-trigger. |
 | `hover`        | `ref?`              | Live cursor position (`{ x, y, active }`), updated without re-rendering. |
 | `mic`          | `ref?`              | Live microphone level (`{ level, active }`); reacts to real audio. |
